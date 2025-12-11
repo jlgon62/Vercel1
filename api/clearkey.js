@@ -1,39 +1,31 @@
+// api/clearkey.js
+// Simple license responder para Clearkey: ?channel=sky16
+const CHANNELS = {
+  "sky16": {
+    kidHex: "c88dc6c668cac3b468d4a4c7e176ff3d",
+    keyHex: "1aeb739de2c14ed0ad658ca8043208d8"
+  }
+}
+
+function hexToBase64(hex) {
+  const bytes = Buffer.from(hex.replace(/[^0-9a-f]/gi, ''), 'hex')
+  return bytes.toString('base64')
+}
+
 export default function handler(req, res) {
-  const channel = req.query.channel;
+  const name = (req.query.channel || '').toLowerCase()
+  const ch = CHANNELS[name]
+  if (!ch) return res.status(404).json({ error: 'Channel not found' })
 
-  if (!channel) {
-    return res.status(400).json({ error: "Missing ?channel=name parameter" });
+  const kid_b64 = hexToBase64(ch.kidHex)
+  const key_b64 = hexToBase64(ch.keyHex)
+
+  const body = {
+    keys: [{ kty: 'oct', kid: kid_b64, k: key_b64 }],
+    type: 'temporary'
   }
 
-  // 🔹 AQUI ES DONDE VAN TUS KID Y KEY
-  const CHANNELS = {
-    "sky16": {
-      kidHex: "c88dc6c668cac3b468d4a4c7e176ff3d",
-      keyHex: "1aeb739de2c14ed0ad658ca8043208d8"
-    }
-  };
-
-  const data = CHANNELS[channel];
-
-  if (!data) {
-    return res.status(404).json({ error: "Channel not found" });
-  }
-
-  // Convertir hex a base64
-  const hexToBase64 = hex =>
-    Buffer.from(hex.replace(/-/g, ""), "hex").toString("base64");
-
-  const clearkey = {
-    keys: [
-      {
-        kty: "oct",
-        kid: hexToBase64(data.kidHex),
-        k: hexToBase64(data.keyHex)
-      }
-    ],
-    type: "temporary"
-  };
-
-  res.setHeader("Content-Type", "application/json");
-  return res.status(200).json(clearkey);
+  res.setHeader('Content-Type', 'application/json')
+  res.setHeader('Access-Control-Allow-Origin', '*')
+  return res.status(200).send(JSON.stringify(body))
 }
